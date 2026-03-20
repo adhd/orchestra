@@ -3,6 +3,7 @@ import {
   normalizeGitLabIssue,
   type GitLabRawIssue,
 } from "./gitlab-normalizer.js";
+import { fetchWithTimeout } from "../util/fetch-timeout.js";
 
 export interface GitLabTrackerConfig {
   endpoint?: string;
@@ -73,44 +74,46 @@ export class GitLabClient implements TrackerClient {
     issueIds: string[],
   ): Promise<Map<string, string>> {
     const result = new Map<string, string>();
-    const encodedProject = encodeURIComponent(this.projectPath);
 
-    for (const iid of issueIds) {
-      try {
-        const url = `${this.endpoint}/api/v4/projects/${encodedProject}/issues/${iid}`;
-        const response = await this.fetch(url);
-        const data = (await response.json()) as GitLabRawIssue;
+    const settled = await Promise.allSettled(
+      issueIds.map((iid) => this.fetchSingleIssueState(iid)),
+    );
 
-        if (data.state === "closed") {
-          result.set(iid, "Done");
-        } else {
-          const labelLower = data.labels.map((l) => l.toLowerCase());
-          const terminal = this.terminalLabels.find((t) =>
-            labelLower.includes(t.toLowerCase()),
-          );
-          const active = this.activeLabels.find((a) =>
-            labelLower.includes(a.toLowerCase()),
-          );
-          result.set(iid, terminal ?? active ?? "unknown");
-        }
-      } catch {
-        // Issue not found or API error -- skip.
+    for (let i = 0; i < issueIds.length; i++) {
+      const outcome = settled[i];
+      if (outcome.status === "fulfilled" && outcome.value !== undefined) {
+        result.set(issueIds[i], outcome.value);
       }
     }
 
     return result;
   }
 
-  private async fetch(url: string): Promise<Response> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-    try {
-      return await fetch(url, {
-        headers: { "PRIVATE-TOKEN": this.token },
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeout);
+  private async fetchSingleIssueState(iid: string): Promise<string> {
+    const encodedProject = encodeURIComponent(this.projectPath);
+    const url = `${this.endpoint}/api/v4/projects/${encodedProject}/issues/${iid}`;
+    const response = await this.fetch(url);
+    const data = (await response.json()) as GitLabRawIssue;
+
+    if (data.state === "closed") {
+      return this.terminalLabels[0] ?? "Done";
     }
+
+    const labelLower = data.labels.map((l) => l.toLowerCase());
+    const terminal = this.terminalLabels.find((t) =>
+      labelLower.includes(t.toLowerCase()),
+    );
+    const active = this.activeLabels.find((a) =>
+      labelLower.includes(a.toLowerCase()),
+    );
+    return terminal ?? active ?? "unknown";
+  }
+
+  private async fetch(url: string): Promise<Response> {
+    return fetchWithTimeout(
+      url,
+      { headers: { "PRIVATE-TOKEN": this.token } },
+      this.timeoutMs,
+    );
   }
 }

@@ -5,6 +5,7 @@ import type {
   WorkerEntry,
   NormalizedIssue,
 } from "../../src/types/index.js";
+import { emptyTokenUsage } from "../../src/types/index.js";
 import pino from "pino";
 
 const logger = pino({ level: "silent" });
@@ -40,7 +41,7 @@ function makeWorker(
     lastEventAt: Date.now(),
     runAttemptState: "streaming_turn",
     abortController: new AbortController(),
-    tokenUsage: { input: 0, output: 0, cacheRead: 0, costUSD: 0 },
+    tokenUsage: emptyTokenUsage(),
     ...rest,
   };
 }

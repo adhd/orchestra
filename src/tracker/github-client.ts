@@ -87,51 +87,54 @@ export class GitHubClient implements TrackerClient {
   ): Promise<Map<string, string>> {
     const result = new Map<string, string>();
 
-    for (const issueNumber of issueIds) {
-      try {
-        const { stdout } = await execFileAsync(
-          "gh",
-          [
-            "issue",
-            "view",
-            issueNumber,
-            "--repo",
-            `${this.owner}/${this.repo}`,
-            "--json",
-            "state,labels",
-          ],
-          { timeout: 15_000 },
-        );
+    const settled = await Promise.allSettled(
+      issueIds.map((issueNumber) => this.fetchSingleIssueState(issueNumber)),
+    );
 
-        const data = JSON.parse(stdout) as {
-          state: string;
-          labels: Array<{ name: string }>;
-        };
-
-        if (data.state === "CLOSED") {
-          result.set(issueNumber, "Done");
-        } else {
-          const labelNames = data.labels.map((l) => l.name.toLowerCase());
-          const terminalLabel = this.terminalLabels.find((l) =>
-            labelNames.includes(l.toLowerCase()),
-          );
-          const activeLabel = this.activeLabels.find((l) =>
-            labelNames.includes(l.toLowerCase()),
-          );
-
-          if (terminalLabel) {
-            result.set(issueNumber, terminalLabel);
-          } else if (activeLabel) {
-            result.set(issueNumber, activeLabel);
-          } else {
-            result.set(issueNumber, "unknown");
-          }
-        }
-      } catch {
-        // Issue not found or gh error -- skip.
+    for (let i = 0; i < issueIds.length; i++) {
+      const outcome = settled[i];
+      if (outcome.status === "fulfilled" && outcome.value !== undefined) {
+        result.set(issueIds[i], outcome.value);
       }
     }
 
     return result;
+  }
+
+  private async fetchSingleIssueState(issueNumber: string): Promise<string> {
+    const { stdout } = await execFileAsync(
+      "gh",
+      [
+        "issue",
+        "view",
+        issueNumber,
+        "--repo",
+        `${this.owner}/${this.repo}`,
+        "--json",
+        "state,labels",
+      ],
+      { timeout: 15_000 },
+    );
+
+    const data = JSON.parse(stdout) as {
+      state: string;
+      labels: Array<{ name: string }>;
+    };
+
+    if (data.state === "CLOSED") {
+      return this.terminalLabels[0] ?? "Done";
+    }
+
+    const labelNames = data.labels.map((l) => l.name.toLowerCase());
+    const terminalLabel = this.terminalLabels.find((l) =>
+      labelNames.includes(l.toLowerCase()),
+    );
+    const activeLabel = this.activeLabels.find((l) =>
+      labelNames.includes(l.toLowerCase()),
+    );
+
+    if (terminalLabel) return terminalLabel;
+    if (activeLabel) return activeLabel;
+    return "unknown";
   }
 }

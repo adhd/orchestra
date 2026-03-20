@@ -34,7 +34,6 @@ const defaultConfig: AgentConfig = {
 };
 
 const activeStates = ["Todo", "In Progress"];
-const terminalStates = ["Done", "Canceled"];
 
 describe("dispatch", () => {
   describe("isEligible", () => {
@@ -43,7 +42,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue(),
           activeStates,
-          terminalStates,
           new Map(),
           new Map(),
           new Set(),
@@ -57,7 +55,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue({ id: "" }),
           activeStates,
-          terminalStates,
           new Map(),
           new Map(),
           new Set(),
@@ -71,7 +68,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue({ state: "Done" }),
           activeStates,
-          terminalStates,
           new Map(),
           new Map(),
           new Set(),
@@ -86,7 +82,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue(),
           activeStates,
-          terminalStates,
           running,
           new Map(),
           new Set(),
@@ -100,7 +95,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue(),
           activeStates,
-          terminalStates,
           new Map(),
           new Map(),
           new Set(["issue-1"]),
@@ -115,7 +109,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue(),
           activeStates,
-          terminalStates,
           new Map(),
           retrying,
           new Set(),
@@ -132,7 +125,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue(),
           activeStates,
-          terminalStates,
           running,
           new Map(),
           new Set(),
@@ -153,7 +145,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue(),
           activeStates,
-          terminalStates,
           running,
           new Map(),
           new Set(),
@@ -167,7 +158,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue({ blocked_by: ["PROJ-40"] }),
           activeStates,
-          terminalStates,
           new Map(),
           new Map(),
           new Set(),
@@ -181,7 +171,6 @@ describe("dispatch", () => {
         isEligible(
           makeIssue({ blocked_by: [] }),
           activeStates,
-          terminalStates,
           new Map(),
           new Map(),
           new Set(),

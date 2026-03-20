@@ -5,6 +5,9 @@ import type {
   TokenUsage,
 } from "../types/index.js";
 import type { ClaudeConfig } from "../config/schema.js";
+import { isAssistantMessage } from "./sdk-message-utils.js";
+import { toErrorMessage } from "../util/errors.js";
+import { emptyTokenUsage } from "../types/index.js";
 export interface ToolPolicy {
   allowed: string[];
   denied: string[];
@@ -48,12 +51,7 @@ export async function runAgentSession(
 
   let sessionId: string | null = null;
   let turnCount = 0;
-  const tokenUsage: TokenUsage = {
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    costUSD: 0,
-  };
+  const tokenUsage: TokenUsage = emptyTokenUsage();
   let hitTurnLimit = false;
 
   try {
@@ -164,7 +162,7 @@ export async function runAgentSession(
       hitTurnLimit: false,
     };
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorMessage = toErrorMessage(err);
 
     // Check if it was an abort
     if (abortSignal.aborted) {
@@ -205,10 +203,6 @@ function abortSignalToController(signal: AbortSignal): AbortController {
 
 function isSystemInit(msg: SDKMessage): boolean {
   return msg.type === "system" && "subtype" in msg && msg.subtype === "init";
-}
-
-function isAssistantMessage(msg: SDKMessage): boolean {
-  return msg.type === "assistant";
 }
 
 function isResultMessage(msg: SDKMessage): boolean {

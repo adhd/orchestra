@@ -147,7 +147,7 @@ describe("GitHubClient", () => {
       ]);
 
       const states = await client.fetchIssueStatesByIds(["10"]);
-      expect(states.get("10")).toBe("Done");
+      expect(states.get("10")).toBe("done");
     });
 
     it("determines state from active labels on open issues", async () => {

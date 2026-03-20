@@ -55,6 +55,10 @@ export interface TokenUsage {
   costUSD: number;
 }
 
+export function emptyTokenUsage(): TokenUsage {
+  return { input: 0, output: 0, cacheRead: 0, costUSD: 0 };
+}
+
 // Retry entry
 export interface RetryEntry {
   issueId: string;

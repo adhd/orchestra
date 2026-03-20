@@ -283,7 +283,6 @@ export function createCli(): Command {
             isEligible(
               issue,
               workflow.config.tracker.active_states,
-              workflow.config.tracker.terminal_states,
               runningMap,
               retryMap,
               claimedSet,

@@ -1,7 +1,23 @@
 import Fastify from "fastify";
 import type { Orchestrator } from "../orchestrator/orchestrator.js";
+import type { WorkerEntry } from "../types/index.js";
 import type { Logger } from "pino";
 import { renderDashboard } from "./dashboard.js";
+
+function serializeWorker(w: WorkerEntry) {
+  return {
+    issue_id: w.issue.id,
+    identifier: w.issue.identifier,
+    title: w.issue.title,
+    state: w.runAttemptState,
+    attempt: w.attempt,
+    turn_count: w.turnCount,
+    session_id: w.sessionId,
+    started_at: new Date(w.startedAt).toISOString(),
+    last_event_at: new Date(w.lastEventAt).toISOString(),
+    token_usage: w.tokenUsage,
+  };
+}
 
 export async function startHttpServer(
   orchestrator: Orchestrator,
@@ -26,18 +42,7 @@ export async function startHttpServer(
   // JSON API: Full state snapshot
   app.get("/api/v1/state", async () => {
     const stats = orchestrator.getStats();
-    const workers = orchestrator.getRunningWorkers().map((w) => ({
-      issue_id: w.issue.id,
-      identifier: w.issue.identifier,
-      title: w.issue.title,
-      state: w.runAttemptState,
-      attempt: w.attempt,
-      turn_count: w.turnCount,
-      session_id: w.sessionId,
-      started_at: new Date(w.startedAt).toISOString(),
-      last_event_at: new Date(w.lastEventAt).toISOString(),
-      token_usage: w.tokenUsage,
-    }));
+    const workers = orchestrator.getRunningWorkers().map(serializeWorker);
     const retries = orchestrator.getRetryQueue();
     const tokens = orchestrator.getSessionTracker().getAggregateTokens();
 
@@ -96,18 +101,7 @@ export async function startHttpServer(
 
     const sendUpdate = () => {
       const stats = orchestrator.getStats();
-      const workers = orchestrator.getRunningWorkers().map((w) => ({
-        issue_id: w.issue.id,
-        identifier: w.issue.identifier,
-        title: w.issue.title,
-        state: w.runAttemptState,
-        attempt: w.attempt,
-        turn_count: w.turnCount,
-        session_id: w.sessionId,
-        started_at: new Date(w.startedAt).toISOString(),
-        last_event_at: new Date(w.lastEventAt).toISOString(),
-        token_usage: w.tokenUsage,
-      }));
+      const workers = orchestrator.getRunningWorkers().map(serializeWorker);
       const retries = orchestrator.getRetryQueue();
       const tokens = orchestrator.getSessionTracker().getAggregateTokens();
 

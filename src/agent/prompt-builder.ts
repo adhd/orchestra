@@ -31,10 +31,12 @@ export async function buildFullPrompt(
   // Layer 1: Global prompt
   if (ctx.promptsDir) {
     const globalPath = path.join(ctx.promptsDir, "global.md");
-    if (fs.existsSync(globalPath)) {
+    try {
       const raw = fs.readFileSync(globalPath, "utf-8");
       const rendered = await engine.parseAndRender(raw, vars);
       parts.push(rendered.trim());
+    } catch {
+      // File doesn't exist or can't be read -- skip this layer
     }
   }
 
@@ -42,10 +44,12 @@ export async function buildFullPrompt(
   if (ctx.promptsDir) {
     const stateName = ctx.issue.state.toLowerCase().replace(/\s+/g, "-");
     const stagePath = path.join(ctx.promptsDir, `${stateName}.md`);
-    if (fs.existsSync(stagePath)) {
+    try {
       const raw = fs.readFileSync(stagePath, "utf-8");
       const rendered = await engine.parseAndRender(raw, vars);
       parts.push(rendered.trim());
+    } catch {
+      // File doesn't exist or can't be read -- skip this layer
     }
   }
 

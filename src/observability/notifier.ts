@@ -1,5 +1,6 @@
 import type { EventBus, OrchestraEventName } from "../events/event-bus.js";
 import type { Logger } from "pino";
+import { fetchWithTimeout } from "../util/fetch-timeout.js";
 
 export interface NotifierConfig {
   webhookUrl?: string;
@@ -50,25 +51,21 @@ export class Notifier {
       data,
     };
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
-
-    try {
-      const response = await fetch(this.config.webhookUrl, {
+    const response = await fetchWithTimeout(
+      this.config.webhookUrl,
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
+      },
+      10_000,
+    );
 
-      if (!response.ok) {
-        this.logger.warn(
-          { event, status: response.status },
-          "Webhook returned non-OK status",
-        );
-      }
-    } finally {
-      clearTimeout(timeout);
+    if (!response.ok) {
+      this.logger.warn(
+        { event, status: response.status },
+        "Webhook returned non-OK status",
+      );
     }
   }
 }

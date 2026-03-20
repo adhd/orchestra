@@ -4,6 +4,7 @@ import {
   normalizeLinearIssue,
   type LinearRawIssue,
 } from "./linear-normalizer.js";
+import { fetchWithTimeout } from "../util/fetch-timeout.js";
 
 const ISSUE_FIELDS = `
   id
@@ -104,44 +105,40 @@ export class LinearClient implements TrackerClient {
     query: string,
     variables?: Record<string, unknown>,
   ): Promise<T> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-
-    try {
-      const response = await fetch(this.endpoint, {
+    const response = await fetchWithTimeout(
+      this.endpoint,
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: this.apiKey,
         },
         body: JSON.stringify({ query, variables }),
-        signal: controller.signal,
-      });
+      },
+      this.timeoutMs,
+    );
 
-      if (!response.ok) {
-        throw new Error(
-          `Linear API error: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      const json = (await response.json()) as {
-        data?: T;
-        errors?: Array<{ message: string }>;
-      };
-
-      if (json.errors?.length) {
-        throw new Error(
-          `Linear GraphQL errors: ${json.errors.map((e) => e.message).join(", ")}`,
-        );
-      }
-
-      if (!json.data) {
-        throw new Error("Linear API returned no data");
-      }
-
-      return json.data;
-    } finally {
-      clearTimeout(timeout);
+    if (!response.ok) {
+      throw new Error(
+        `Linear API error: ${response.status} ${response.statusText}`,
+      );
     }
+
+    const json = (await response.json()) as {
+      data?: T;
+      errors?: Array<{ message: string }>;
+    };
+
+    if (json.errors?.length) {
+      throw new Error(
+        `Linear GraphQL errors: ${json.errors.map((e) => e.message).join(", ")}`,
+      );
+    }
+
+    if (!json.data) {
+      throw new Error("Linear API returned no data");
+    }
+
+    return json.data;
   }
 }

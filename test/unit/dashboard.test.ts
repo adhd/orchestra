@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { renderDashboard } from "../../src/observability/dashboard.js";
 import type { WorkerEntry, TokenUsage } from "../../src/types/index.js";
+import { emptyTokenUsage } from "../../src/types/index.js";
 
 function makeTokenUsage(overrides: Partial<TokenUsage> = {}): TokenUsage {
-  return { input: 0, output: 0, cacheRead: 0, costUSD: 0, ...overrides };
+  return { ...emptyTokenUsage(), ...overrides };
 }
 
 function makeWorkerEntry(overrides: Partial<WorkerEntry> = {}): WorkerEntry {

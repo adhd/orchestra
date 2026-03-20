@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { sanitizeIdentifier } from "../workspace/path-safety.js";
 
 export class AgentFileLogger {
   private logDir: string;
@@ -16,12 +17,25 @@ export class AgentFileLogger {
     stream.write(`[${timestamp}] [${eventType}] ${message}\n`);
   }
 
+  /**
+   * End and remove the stream for a completed issue.
+   */
+  endStream(identifier: string): void {
+    const safe = sanitizeIdentifier(identifier);
+    const stream = this.streams.get(safe);
+    if (stream) {
+      stream.end();
+      this.streams.delete(safe);
+    }
+  }
+
   private getStream(identifier: string): fs.WriteStream {
-    let stream = this.streams.get(identifier);
+    const safe = sanitizeIdentifier(identifier);
+    let stream = this.streams.get(safe);
     if (!stream) {
-      const filePath = path.join(this.logDir, `${identifier}.log`);
+      const filePath = path.join(this.logDir, `${safe}.log`);
       stream = fs.createWriteStream(filePath, { flags: "a" });
-      this.streams.set(identifier, stream);
+      this.streams.set(safe, stream);
     }
     return stream;
   }

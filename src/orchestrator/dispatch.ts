@@ -18,7 +18,6 @@ import type { AgentConfig } from "../config/schema.js";
 export function isEligible(
   issue: NormalizedIssue,
   activeStates: string[],
-  terminalStates: string[],
   runningMap: {
     size: number;
     has(key: string): boolean;

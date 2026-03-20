@@ -6,6 +6,8 @@ import type {
   AgentRunResult,
   StateEvent,
 } from "../types/index.js";
+import { emptyTokenUsage } from "../types/index.js";
+import { toErrorMessage } from "../util/errors.js";
 import type { WorkflowConfig } from "../config/schema.js";
 import { transition } from "./state-machine.js";
 import { isEligible, sortCandidates } from "./dispatch.js";
@@ -315,7 +317,6 @@ export class Orchestrator {
         isEligible(
           issue,
           this.config.tracker.active_states,
-          this.config.tracker.terminal_states,
           this.runningMap,
           this.retryQueue,
           this.claimedSet,
@@ -377,11 +378,11 @@ export class Orchestrator {
       issueLogger,
     ).catch((err) => {
       issueLogger.error({ error: String(err) }, "Worker failed unexpectedly");
-      this.handleWorkerExit(issue, attempt, null, {
+      this.handleWorkerExit(issue, attempt, {
         success: false,
         sessionId: null,
         turnCount: 0,
-        tokenUsage: { input: 0, output: 0, cacheRead: 0, costUSD: 0 },
+        tokenUsage: emptyTokenUsage(),
         error: String(err),
         hitTurnLimit: false,
       });
@@ -408,7 +409,7 @@ export class Orchestrator {
       lastEventAt: Date.now(),
       runAttemptState: "preparing_workspace",
       abortController,
-      tokenUsage: { input: 0, output: 0, cacheRead: 0, costUSD: 0 },
+      tokenUsage: emptyTokenUsage(),
     };
     this.runningMap.set(issue.id, worker);
     this.transitionState(issue.id, { type: "worker_started" });
@@ -589,10 +590,10 @@ export class Orchestrator {
         this.sessionTracker.complete(result.sessionId);
       }
 
-      this.handleWorkerExit(issue, attempt, resumeSessionId, result);
+      this.handleWorkerExit(issue, attempt, result);
     } catch (err) {
       worker.runAttemptState = "failed";
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = toErrorMessage(err);
       logger.error({ error: errorMsg }, "Worker error");
 
       // Cleanup circuit breaker
@@ -603,7 +604,7 @@ export class Orchestrator {
         this.sessionTracker.complete(worker.sessionId);
       }
 
-      this.handleWorkerExit(issue, attempt, resumeSessionId, {
+      this.handleWorkerExit(issue, attempt, {
         success: false,
         sessionId: worker.sessionId,
         turnCount: worker.turnCount,
@@ -617,7 +618,6 @@ export class Orchestrator {
   private handleWorkerExit(
     issue: NormalizedIssue,
     attempt: number,
-    _resumeSessionId: string | null,
     result: AgentRunResult,
   ): void {
     // Record to history log before removing from running map
@@ -643,6 +643,11 @@ export class Orchestrator {
 
     // Remove from running map
     this.runningMap.delete(issue.id);
+
+    // Close agent log stream for this issue
+    if (this.agentLogger) {
+      this.agentLogger.endStream(issue.identifier);
+    }
 
     if (result.success && result.hitTurnLimit) {
       // Continuation retry — agent hit turn limit but was successful

@@ -1,4 +1,5 @@
 import type { TrackerClient, WorkerEntry } from "../types/index.js";
+import { toErrorMessage } from "../util/errors.js";
 import type { Logger } from "pino";
 
 export interface ReconcileResult {
@@ -85,7 +86,7 @@ export async function reconcile(
       }
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = toErrorMessage(err);
     logger.error(
       { error: msg },
       "Reconciliation state refresh failed, keeping workers",
